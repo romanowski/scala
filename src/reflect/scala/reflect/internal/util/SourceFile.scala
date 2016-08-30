@@ -149,10 +149,7 @@ class BatchSourceFile(val file : AbstractFile, content0: Array[Char]) extends So
   }
 
   /** True if the index is end of an EOL sequence. */
-  def isAtEndOfLine(idx: Int) = charAtIsEOL(idx) {
-    case CR | LF => true
-    case _       => false
-  }
+  def isAtEndOfLine(idx: Int) = charAtIsEOL(idx)(IsEoL)
 
   def calculateLineIndices(cs: Array[Char]) = {
     val buf = new ArrayBuffer[Int]
@@ -187,4 +184,10 @@ class BatchSourceFile(val file : AbstractFile, content0: Array[Char]) extends So
     case _ => false
   }
   override def hashCode = file.path.## + start.##
+}
+
+
+
+object IsEoL extends (Char => Boolean)  {
+  override def apply(x: Char): Boolean = x => x == CR || x == LF
 }

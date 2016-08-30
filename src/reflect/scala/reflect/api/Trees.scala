@@ -187,6 +187,10 @@ trait Trees { self: Universe =>
    *  @group Trees
    */
   val EmptyTree: Tree
+  object nonEmptyTree extends (Tree => Boolean) {
+
+    override def apply(t: Tree): Boolean = EmptyTree != t
+  }
 
   /** A tree for a term.  Not all trees representing terms are TermTrees; use isTerm
    *  to reliably identify terms.
@@ -2553,10 +2557,13 @@ trait Trees { self: Universe =>
 
     /** Transforms a single tree. */
     def transform(tree: Tree): Tree = itransform(this, tree)
+    object myTransform extends (Tree => Tree) {
+         override def apply(tree: Tree): Tree = transform(tree)
+    }
 
     /** Transforms a list of trees. */
     def transformTrees(trees: List[Tree]): List[Tree] =
-      if (trees.isEmpty) Nil else trees mapConserve transform
+      if (trees.isEmpty) Nil else trees mapConserve myTransform
 
     /** Transforms a `Template`. */
     def transformTemplate(tree: Template): Template =
@@ -2577,8 +2584,13 @@ trait Trees { self: Universe =>
     /** Transforms a list of `CaseDef` nodes. */
     def transformMemberDefs(trees: List[MemberDef]): List[MemberDef] =
       trees mapConserve (tree => transform(tree).asInstanceOf[MemberDef])
+
+    private object transformCaseDefsBody extends (CaseDef => CaseDef){
+      override def apply(tree: CaseDef): CaseDef = transform(tree).asInstanceOf[CaseDef]
+    }
+
     def transformCaseDefs(trees: List[CaseDef]): List[CaseDef] =
-      trees mapConserve (tree => transform(tree).asInstanceOf[CaseDef])
+      trees mapConserve transformCaseDefsBody
     /** Transforms a list of `Ident` nodes. */
     def transformIdents(trees: List[Ident]): List[Ident] =
       trees mapConserve (tree => transform(tree).asInstanceOf[Ident])
@@ -2586,7 +2598,7 @@ trait Trees { self: Universe =>
     def transformStats(stats: List[Tree], exprOwner: Symbol): List[Tree] =
       stats mapConserve (stat =>
         if (exprOwner != currentOwner && stat.isTerm) atOwner(exprOwner)(transform(stat))
-        else transform(stat)) filter (EmptyTree != _)
+        else transform(stat)) filter (nonEmptyTree)
     /** Transforms `Modifiers`. */
     def transformModifiers(mods: Modifiers): Modifiers = {
       if (mods.annotations.isEmpty) mods
