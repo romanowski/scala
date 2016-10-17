@@ -567,6 +567,7 @@ trait Macros extends MacroRuntimes with Traces with Helpers {
       linkExpandeeAndDesugared(expandee, desugared)
 
       val start = if (Statistics.canEnable) Statistics.startTimer(macroExpandNanos) else null
+      val nanoStart = if(customStats.enable) System.nanoTime() else -1L
       if (Statistics.canEnable) Statistics.incCounter(macroExpandCount)
       try {
         withInfoLevel(nodePrinters.InfoLevel.Quiet) { // verbose printing might cause recursive macro expansions
@@ -600,6 +601,12 @@ trait Macros extends MacroRuntimes with Traces with Helpers {
           }
         }
       } finally {
+        if (nanoStart > 0) {
+          val name = expandee.symbol.fullName
+          customStats.macrosCounts += name -> (customStats.macrosCounts.get(name).getOrElse(0L) + 1)
+          customStats.macrosTimes += name -> (customStats.macrosTimes.get(name).getOrElse(0L) + System.nanoTime() - nanoStart)
+        }
+
         if (Statistics.canEnable) Statistics.stopTimer(macroExpandNanos, start)
       }
     }

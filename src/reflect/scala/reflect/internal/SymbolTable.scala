@@ -48,6 +48,7 @@ abstract class SymbolTable extends macros.Universe
                               with Internals
                               with Reporting
 {
+  object customStats extends CustomStats(settings)
 
   val gen = new InternalTreeGen { val global: SymbolTable.this.type = SymbolTable.this }
 

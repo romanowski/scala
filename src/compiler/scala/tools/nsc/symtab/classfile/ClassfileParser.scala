@@ -137,7 +137,9 @@ abstract class ClassfileParser {
 
     this.file = file
     pushBusy(root) {
+      val startNano = symbolTable.customStats.currentTime
       this.in           = new AbstractFileReader(file)
+      if(startNano > 0) symbolTable.customStats.loadingClassBytes += symbolTable.customStats.currentTime - startNano
       this.clazz        = if (root.isModule) root.companionClass else root
       // WARNING! do no use clazz.companionModule to find staticModule.
       // In a situation where root can be defined, but its companionClass not,
@@ -1058,7 +1060,7 @@ abstract class ClassfileParser {
       unlinkIfPresent(cName.toTermName)
       unlinkIfPresent(cName.toTypeName)
     }
-
+    val start = symbolTable.customStats.currentTime
     for (entry <- innerClasses.entries) {
       // create a new class member for immediate inner classes
       if (entry.outerName == currentClass) {
@@ -1066,6 +1068,7 @@ abstract class ClassfileParser {
         enterClassAndModule(entry, file.getOrElse(NoAbstractFile))
       }
     }
+    if(start > 0) symbolTable.customStats.innerClassesLoading += symbolTable.customStats.currentTime - start
   }
 
   /** Parse inner classes. Expects `in.bp` to point to the superclass entry.

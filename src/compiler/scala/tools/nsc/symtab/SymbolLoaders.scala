@@ -253,6 +253,8 @@ abstract class SymbolLoaders {
     protected def description = s"package loader ${classpath.name}"
 
     protected def doComplete(root: Symbol) {
+      val nanoStart = customStats.currentTime
+
       assert(root.isPackageClass, root)
       // Time travel to a phase before refchecks avoids an initialization issue. `openPackageModule`
       // creates a module symbol and invokes invokes `companionModule` while the `infos` field is
@@ -273,6 +275,7 @@ abstract class SymbolLoaders {
           openPackageModule(root)
         }
       }
+      if(nanoStart > 0) customStats.packagesLoadingTime += customStats.currentTime - nanoStart
     }
   }
 
@@ -286,10 +289,14 @@ abstract class SymbolLoaders {
     }
 
     protected def doComplete(root: Symbol) {
+      val nanoStart = customStats.currentTime
+
       assert(root.isPackageClass, root)
       root.setInfo(new PackageClassInfoType(newScope, root))
 
       val classPathEntries = classPath.list(packageName)
+
+      val listCompleted = customStats.currentTime
 
       if (!root.isRoot)
         for (entry <- classPathEntries.classesAndSources) initializeFromClassPath(root, entry)
@@ -305,6 +312,10 @@ abstract class SymbolLoaders {
         }
 
         openPackageModule(root)
+      }
+      if(nanoStart > 0) {
+        customStats.packagesListTime += listCompleted - nanoStart
+        customStats.packagesLoadingTime += customStats.currentTime - listCompleted
       }
     }
   }
@@ -338,6 +349,7 @@ abstract class SymbolLoaders {
     protected def description = "class file "+ classfile.toString
 
     protected def doComplete(root: Symbol) {
+      val nanoStart = customStats.currentTime
       val start = if (Statistics.canEnable) Statistics.startTimer(classReadNanos) else null
 
       // Running the classfile parser after refchecks can lead to "illegal class file dependency"
@@ -357,6 +369,7 @@ abstract class SymbolLoaders {
         }
       }
       if (Statistics.canEnable) Statistics.stopTimer(classReadNanos, start)
+      if(nanoStart > 0) customStats.classLoadingTime += customStats.currentTime - nanoStart
     }
     override def sourcefile: Option[AbstractFile] = classfileParser.srcfile
   }
@@ -365,12 +378,20 @@ abstract class SymbolLoaders {
     protected def description = "source file "+ srcfile.toString
     override def fromSource = true
     override def sourcefile = Some(srcfile)
-    protected def doComplete(root: Symbol): Unit = compileLate(srcfile)
+    protected def doComplete(root: Symbol): Unit = {
+      val nanoStart = customStats.currentTime
+      compileLate(srcfile)
+      if(nanoStart > 0) customStats.classLoadingTime += customStats.currentTime - nanoStart
+    }
   }
 
   object moduleClassLoader extends SymbolLoader with FlagAssigningCompleter {
     protected def description = "module class loader"
-    protected def doComplete(root: Symbol) { root.sourceModule.initialize }
+    protected def doComplete(root: Symbol) {
+      val nanoStart = customStats.currentTime
+      root.sourceModule.initialize
+      if (nanoStart > 0) customStats.classLoadingTime += customStats.currentTime - nanoStart
+    }
   }
 
   /** used from classfile parser to avoid cycles */

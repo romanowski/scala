@@ -1490,15 +1490,21 @@ class Global(var currentSettings: Settings, var reporter: Reporter)
 
       units foreach addUnit
       val startTime = currentTime
+      val startTimeNano = customStats.currentTime
 
       reporter.reset()
       checkDeprecatedSettings(unitbuf.head)
       globalPhase = fromPhase
 
+      var phasesTime: mutable.LinkedHashMap[String, Long] = mutable.LinkedHashMap.empty
+
       while (globalPhase.hasNext && !reporter.hasErrors) {
         val startTime = currentTime
+        val phaseStartNano = customStats.currentTime
         phase = globalPhase
         globalPhase.run()
+
+        if (customStats.enable) phasesTime += (globalPhase.name -> (customStats.currentTime - phaseStartNano))
 
         // progress update
         informTime(globalPhase.description, startTime)
@@ -1541,6 +1547,8 @@ class Global(var currentSettings: Settings, var reporter: Reporter)
         advancePhase()
       }
 
+      val afterPhases = customStats.currentTime
+
       reporting.summarizeErrors()
 
       if (traceSymbolActivity)
@@ -1564,6 +1572,14 @@ class Global(var currentSettings: Settings, var reporter: Reporter)
 
       // Clear any sets or maps created via perRunCaches.
       perRunCaches.clearAll()
+      val end = customStats.currentTime
+
+      if (customStats.enable) {
+        customStats.put("phases.times", phasesTime)
+        customStats.put("full.time", end - startTimeNano)
+        customStats.put("postCompilation.time", end - afterPhases)
+        settings.outputDirs.allOutputDirs.foreach(abstractFile => customStats.store(abstractFile.file))
+      }
     }
 
     /** Compile list of abstract files. */

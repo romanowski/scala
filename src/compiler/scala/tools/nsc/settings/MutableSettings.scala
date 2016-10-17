@@ -348,6 +348,12 @@ class MutableSettings(val errorFn: String => Unit)
           }
       }
     }
+
+    def allOutputDirs = getSingleOutput match {
+      case Some(file) =>
+        file ::  Nil
+      case _ => outputs.map(_._2)
+    }
   }
 
   /** A base class for settings of all types.

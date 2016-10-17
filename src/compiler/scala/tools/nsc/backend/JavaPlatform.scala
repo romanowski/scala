@@ -22,18 +22,24 @@ trait JavaPlatform extends Platform {
   private[nsc] var currentClassPath: Option[MergedClassPath[AbstractFile]] = None
 
   def classPath: ClassPath[AbstractFile] = {
+    val nanoStart = customStats.currentTime
     assert(settings.YclasspathImpl.value == ClassPathRepresentationType.Recursive,
       "To use recursive classpath representation you must enable it with -YclasspathImpl:recursive compiler option.")
 
     if (currentClassPath.isEmpty) currentClassPath = Some(new PathResolver(settings).result)
-    currentClassPath.get
+    val res = currentClassPath.get
+    if (nanoStart > 0) customStats.classpathCreationTime += customStats.currentTime - nanoStart
+    res
   }
 
   private[nsc] lazy val flatClassPath: FlatClassPath = {
     assert(settings.YclasspathImpl.value == ClassPathRepresentationType.Flat,
       "To use flat classpath representation you must enable it with -YclasspathImpl:flat compiler option.")
 
-    new FlatClassPathResolver(settings).result
+    val nanoStart = customStats.currentTime
+    val res = new FlatClassPathResolver(settings).result
+    if(nanoStart > 0) customStats.classpathCreationTime += customStats.currentTime - nanoStart
+    res
   }
 
   /** Update classpath with a substituted subentry */
