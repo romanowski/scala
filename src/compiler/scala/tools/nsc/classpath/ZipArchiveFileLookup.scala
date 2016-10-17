@@ -5,10 +5,27 @@ package scala.tools.nsc.classpath
 
 import java.io.File
 import java.net.URL
+import java.util.concurrent.{TimeUnit, Executors, ExecutorService}
 import scala.collection.Seq
 import scala.reflect.io.AbstractFile
 import scala.reflect.io.FileZipArchive
 import FileUtils.AbstractFileOps
+
+object LazyZipLoader {
+  var executor = Executors.newFixedThreadPool(4)
+
+  def init(lookup: ZipArchiveFileLookup[_]): Unit ={
+    executor.submit(new Runnable {
+      override def run(): Unit = lookup.archive.allDirs
+    })
+  }
+
+  def finish() = if(executor != null) {
+    executor.shutdown()
+    executor.awaitTermination(30, TimeUnit.SECONDS)
+    executor = null
+  }
+}
 
 /**
  * A trait allowing to look for classpath entries of given type in zip and jar files.
@@ -23,7 +40,9 @@ trait ZipArchiveFileLookup[FileEntryType <: ClassRepClassPathEntry] extends Flat
   override def asURLs: Seq[URL] = Seq(zipFile.toURI.toURL)
   override def asClassPathStrings: Seq[String] = Seq(zipFile.getPath)
 
-  private val archive = new FileZipArchive(zipFile)
+  val archive = new FileZipArchive(zipFile)
+
+  LazyZipLoader.init(this)
 
   override private[nsc] def packages(inPackage: String): Seq[PackageEntry] = {
     val prefix = PackageNameUtils.packagePrefix(inPackage)
@@ -40,6 +59,7 @@ trait ZipArchiveFileLookup[FileEntryType <: ClassRepClassPathEntry] extends Flat
     } yield createFileEntry(entry)
 
   override private[nsc] def list(inPackage: String): FlatClassPathEntries = {
+    LazyZipLoader.finish()
     val foundDirEntry = findDirEntry(inPackage)
 
     foundDirEntry map { dirEntry =>
