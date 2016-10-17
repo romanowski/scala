@@ -6,12 +6,19 @@ package scala.tools.nsc.classpath
 import java.io.{ File => JFile }
 import java.net.URL
 import scala.reflect.internal.FatalError
-import scala.reflect.io.AbstractFile
+import scala.reflect.io.{PlainFile, AbstractFile}
 
 /**
  * Common methods related to Java files and abstract files used in the context of classpath
  */
 object FileUtils {
+  def toPlainScalaFile(file: JFile): PlainFile = {
+    val wrappedSourceFile = new scala.reflect.io.File(file)
+    val abstractSourceFile = new PlainFile(wrappedSourceFile)
+    abstractSourceFile
+  }
+
+
   implicit class AbstractFileOps(val file: AbstractFile) extends AnyVal {
     def isPackage: Boolean = file.isDirectory && mayBeValidPackage(file.name)
 
@@ -29,11 +36,7 @@ object FileUtils {
     def toURLs(default: => Seq[URL] = Seq.empty): Seq[URL] = if (file.file == null) default else Seq(file.toURL)
   }
 
-  implicit class FileOps(val file: JFile) extends AnyVal {
-    def isPackage: Boolean = file.isDirectory && mayBeValidPackage(file.getName)
-
-    def isClass: Boolean = file.isFile && file.getName.endsWith(".class")
-  }
+  def isPackage(file : JFile): Boolean = mayBeValidPackage(file.getName) && file.isDirectory
 
   def stripSourceExtension(fileName: String): String = {
     if (endsScala(fileName)) stripClassExtension(fileName)
@@ -63,6 +66,6 @@ object FileUtils {
 
   // probably it should match a pattern like [a-z_]{1}[a-z0-9_]* but it cannot be changed
   // because then some tests in partest don't pass
-  private def mayBeValidPackage(dirName: String): Boolean =
-    (dirName != "META-INF") && (dirName != "") && (dirName.charAt(0) != '.')
+  def mayBeValidPackage(dirName: String): Boolean =
+    (dirName != "META-INF") && (dirName != "") && !dirName.contains('.')
 }

@@ -17,7 +17,7 @@ import scala.tools.nsc.util.ClassRepresentation
  * which are needed in the given moment and only as far as it's necessary.
  * @param aggregates classpath instances containing entries which this class processes
  */
-case class AggregateFlatClassPath(aggregates: Seq[FlatClassPath]) extends FlatClassPath {
+case class AggregateFlatClassPath(val aggregates: Seq[FlatClassPath]) extends FlatClassPath {
 
   override def findClassFile(className: String): Option[AbstractFile] = {
     @tailrec
@@ -78,7 +78,7 @@ case class AggregateFlatClassPath(aggregates: Seq[FlatClassPath]) extends FlatCl
    * creates an entry containing both of them. If there would be more than one class or source
    * entries for the same class it always would use the first entry of each type found on a classpath.
    */
-  private def mergeClassesAndSources(entries: Seq[ClassRepClassPathEntry]*): Seq[ClassRepClassPathEntry] = {
+  def mergeClassesAndSources(entries: Seq[ClassRepClassPathEntry]*): Seq[ClassRepClassPathEntry] = {
     // based on the implementation from MergedClassPath
     var count = 0
     val indices = collection.mutable.HashMap[String, Int]()

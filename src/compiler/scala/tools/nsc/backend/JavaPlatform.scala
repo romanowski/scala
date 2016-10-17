@@ -7,7 +7,7 @@ package scala.tools.nsc
 package backend
 
 import io.AbstractFile
-import scala.tools.nsc.classpath.FlatClassPath
+import scala.tools.nsc.classpath.{AggregateFlatClassPath, FlatClassPath}
 import scala.tools.nsc.settings.ClassPathRepresentationType
 import scala.tools.nsc.util.{ ClassPath, DeltaClassPath, MergedClassPath }
 import scala.tools.util.FlatClassPathResolver
@@ -32,7 +32,7 @@ trait JavaPlatform extends Platform {
     res
   }
 
-  private[nsc] lazy val flatClassPath: FlatClassPath = {
+  private[nsc] lazy val flatClassPath: AggregateFlatClassPath = {
     assert(settings.YclasspathImpl.value == ClassPathRepresentationType.Flat,
       "To use flat classpath representation you must enable it with -YclasspathImpl:flat compiler option.")
 

@@ -3,7 +3,7 @@ package symtab
 
 import scala.reflect.ClassTag
 import scala.reflect.internal.{Phase, NoPhase, SomePhase}
-import scala.tools.nsc.classpath.FlatClassPath
+import scala.tools.nsc.classpath.{AggregateFlatClassPath, FlatClassPath}
 import scala.tools.nsc.settings.ClassPathRepresentationType
 import scala.tools.util.FlatClassPathResolver
 import scala.tools.util.PathResolver
@@ -31,7 +31,7 @@ class SymbolTableForUnitTesting extends SymbolTable {
   override def isCompilerUniverse: Boolean = true
 
   def classPath = platform.classPath
-  def flatClassPath: FlatClassPath = platform.flatClassPath
+  def flatClassPath: AggregateFlatClassPath  = platform.flatClassPath
 
   object platform extends backend.Platform {
     val symbolTable: SymbolTableForUnitTesting.this.type = SymbolTableForUnitTesting.this
@@ -45,7 +45,7 @@ class SymbolTableForUnitTesting extends SymbolTable {
       new PathResolver(settings).result
     }
 
-    private[nsc] lazy val flatClassPath: FlatClassPath = {
+    private[nsc] lazy val flatClassPath: AggregateFlatClassPath = {
       assert(settings.YclasspathImpl.value == ClassPathRepresentationType.Flat,
         "It's not possible to use the flat classpath representation, when it's not the chosen classpath scanning method")
       new FlatClassPathResolver(settings).result

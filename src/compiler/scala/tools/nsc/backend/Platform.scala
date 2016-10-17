@@ -8,7 +8,7 @@ package backend
 
 import util.ClassPath
 import io.AbstractFile
-import scala.tools.nsc.classpath.FlatClassPath
+import scala.tools.nsc.classpath.AggregateFlatClassPath
 
 /** The platform dependent pieces of Global.
  */
@@ -20,7 +20,7 @@ trait Platform {
   def classPath: ClassPath[AbstractFile]
 
   /** The new implementation of compiler classpath. */
-  private[nsc] def flatClassPath: FlatClassPath
+  private[nsc] def flatClassPath: AggregateFlatClassPath
 
   /** Update classpath with a substitution that maps entries to entries */
   def updateClassPath(subst: Map[ClassPath[AbstractFile], ClassPath[AbstractFile]])

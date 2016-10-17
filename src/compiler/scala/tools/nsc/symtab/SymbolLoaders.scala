@@ -8,10 +8,11 @@ package symtab
 
 import classfile.ClassfileParser
 import java.io.IOException
+import scala.collection.mutable
 import scala.reflect.internal.MissingRequirementError
 import scala.reflect.internal.util.Statistics
 import scala.reflect.io.{ AbstractFile, NoAbstractFile }
-import scala.tools.nsc.classpath.FlatClassPath
+import scala.tools.nsc.classpath._
 import scala.tools.nsc.settings.ClassPathRepresentationType
 import scala.tools.nsc.util.{ ClassPath, ClassRepresentation }
 
@@ -282,7 +283,7 @@ abstract class SymbolLoaders {
   /**
    * Loads contents of a package
    */
-  class PackageLoaderUsingFlatClassPath(packageName: String, classPath: FlatClassPath) extends SymbolLoader with FlagAgnosticCompleter {
+  class PackageLoaderUsingFlatClassPath(packageName: String, classPath: AggregateFlatClassPath) extends SymbolLoader with FlagAgnosticCompleter {
     protected def description = {
       val shownPackageName = if (packageName == FlatClassPath.RootPackage) "<root package>" else packageName
       s"package loader $shownPackageName"
@@ -294,20 +295,37 @@ abstract class SymbolLoaders {
       assert(root.isPackageClass, root)
       root.setInfo(new PackageClassInfoType(newScope, root))
 
-      val classPathEntries = classPath.list(packageName)
+      // This should be moved to AggregateFlatClassPath list() method and test in unit tests
+      val classesBuf = mutable.ListBuffer.empty[Seq[ClassRepClassPathEntry]]
+      val packages = mutable.Map.empty[PackageEntry, mutable.ListBuffer[FlatClassPath]]
 
+      def addPackage(cpEntry: FlatClassPath)(pck: PackageEntry): Unit =
+         packages.get(pck) match {
+           case Some(buffer) => buffer += cpEntry
+           case _ => packages += pck -> mutable.ListBuffer(cpEntry)
+         }
+
+      for {
+        cpEntry <- classPath.aggregates
+      } yield {
+        val entries = cpEntry.list(packageName)
+        classesBuf += entries.classesAndSources
+        entries.packages.foreach(addPackage(cpEntry))
+      }
       val listCompleted = customStats.currentTime
 
+      // Load sources and classes
       if (!root.isRoot)
-        for (entry <- classPathEntries.classesAndSources) initializeFromClassPath(root, entry)
+        classPath.mergeClassesAndSources(classesBuf:_*).foreach(e => initializeFromClassPath(root, e))
+
       if (!root.isEmptyPackageClass) {
-        for (pkg <- classPathEntries.packages) {
+        for ((pkg, cpEntries) <- packages) {
           val fullName = pkg.name
 
           val name =
             if (packageName == FlatClassPath.RootPackage) fullName
             else fullName.substring(packageName.length + 1)
-          val packageLoader = new PackageLoaderUsingFlatClassPath(fullName, classPath)
+          val packageLoader = new PackageLoaderUsingFlatClassPath(fullName, AggregateFlatClassPath(cpEntries))
           enterPackage(root, name, packageLoader)
         }
 

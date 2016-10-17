@@ -33,7 +33,7 @@ import backend.opt.{ Inliners, InlineExceptionHandlers, ConstantOptimization, Cl
 import backend.icode.analysis._
 import scala.language.postfixOps
 import scala.tools.nsc.ast.{TreeGen => AstTreeGen}
-import scala.tools.nsc.classpath.FlatClassPath
+import scala.tools.nsc.classpath.{AggregateFlatClassPath, FlatClassPath}
 import scala.tools.nsc.settings.ClassPathRepresentationType
 
 class Global(var currentSettings: Settings, var reporter: Reporter)
@@ -116,7 +116,7 @@ class Global(var currentSettings: Settings, var reporter: Reporter)
 
   private def recursiveClassPath: ClassPath[AbstractFile] = platform.classPath
 
-  private def flatClassPath: FlatClassPath = platform.flatClassPath
+  private def flatClassPath: AggregateFlatClassPath = platform.flatClassPath
 
   // sub-components --------------------------------------------------
 
