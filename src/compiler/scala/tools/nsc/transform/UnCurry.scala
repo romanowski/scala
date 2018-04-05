@@ -222,9 +222,12 @@ abstract class UnCurry extends InfoTransform
         val liftedMethod = gen.mkLiftedFunctionBodyMethod(localTyper)(fun.symbol.owner, fun)
 
         // new function whose body is just a call to the lifted method
-        val newFun = deriveFunction(fun)(_ => localTyper.typedPos(fun.pos)(
+
+        val newBody = localTyper.typedPos(fun.pos)(
           gen.mkForwarder(gen.mkAttributedRef(liftedMethod.symbol), (fun.vparams map (_.symbol)) :: Nil)
-        ))
+        )
+
+        val newFun = treeCopy.Function(fun, fun.vparams, newBody)
 
         if (!mustExpand) {
           liftedMethod.symbol.updateAttachment(DelambdafyTarget)
