@@ -44,6 +44,10 @@ object Parallel {
     } finally locks.get().remove(hash)
   }
 
+  class Lock {
+    def apply[T](op: T) = synchronizeAccess(this)(op)
+  }
+
   def WorkerThreadLocal[T](valueOnWorker: => T, valueOnMain: => T) = new WorkerOrMainThreadLocal[T](valueOnWorker, valueOnMain)
 
   def WorkerThreadLocal[T](valueOnWorker: => T) = new WorkerThreadLocal[T](valueOnWorker)
