@@ -45,7 +45,7 @@ object Parallel {
   }
 
   class Lock {
-    def apply[T](op: T) = synchronizeAccess(this)(op)
+    @inline final def apply[T](op: => T) = synchronizeAccess(this)(op)
   }
 
   def WorkerThreadLocal[T](valueOnWorker: => T, valueOnMain: => T) = new WorkerOrMainThreadLocal[T](valueOnWorker, valueOnMain)

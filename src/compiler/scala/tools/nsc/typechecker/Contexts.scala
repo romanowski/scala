@@ -1416,6 +1416,11 @@ trait Contexts { self: Analyzer =>
     protected def handleError(pos: Position, msg: String): Unit = throw new TypeError(pos, msg)
   }
 
+  private[typechecker] class ThrowingReporter extends ContextReporter {
+    override def isThrowing = true
+    protected def handleError(pos: Position, msg: String): Unit = throw new TypeError(pos, msg)
+  }
+
   /** Used during a run of [[scala.tools.nsc.typechecker.TreeCheckers]]? */
   private[typechecker] class CheckingReporter extends ContextReporter {
     protected def handleError(pos: Position, msg: String): Unit = onTreeCheckerError(pos, msg)
