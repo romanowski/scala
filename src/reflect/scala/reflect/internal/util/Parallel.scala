@@ -32,7 +32,7 @@ object Parallel {
 
   // Wrapper for `synchronized` method. In future could provide additional logging, safety checks, etc.
   @inline def synchronizeAccess[T <: Object, U](obj: T)(block: => U): U = {
-    if (isParallel) obj.synchronized[U](block) else block
+    if (isParallel) Parallel.synchronized[U](block) else block
   }
 
   class Lock {
