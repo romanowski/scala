@@ -38,6 +38,35 @@ object Parallel {
     } else op
   }
 
+
+  def IntWorkerThreadLocal(initial: Int = 0, shouldFailOnMain: Boolean = true) =
+    new AbstractIntThreadLocal(initial, shouldFailOnMain)
+
+  class AbstractIntThreadLocal(initial: Int, shouldFailOnMain: Boolean) {
+    private var main: Int = initial
+
+    private[this] lazy val worker: ThreadLocal[Int] = new ThreadLocal[Int] {
+      override def initialValue(): Int = initial
+    }
+
+    @inline final def get: Int = {
+      if (isParallel) {
+        if (isWorker.get()) worker.get()
+        else if(shouldFailOnMain) throw new IllegalStateException("not allowed on main thread")
+        else main
+      }
+      else main
+    }
+
+    @inline final def set(value: Int): Unit =
+      if (isParallel && isWorker.get()) worker.set(value) else main = value
+
+    @inline final def reset(): Unit = {
+      worker.remove()
+      main = initial
+    }
+  }
+
   class AbstractThreadLocal[T](initial: T, shouldFailOnMain: Boolean) {
     private var main: T = initial
 
@@ -46,11 +75,12 @@ object Parallel {
      }
 
     @inline final def get: T = {
-      if (isParallel && isWorker.get()) worker.get()
-      else {
-        if (isParallel && shouldFailOnMain) throw new IllegalStateException("not allowed on main thread")
-        main
+      if (isParallel) {
+        if (isWorker.get()) worker.get()
+        else if(shouldFailOnMain) throw new IllegalStateException("not allowed on main thread")
+        else main
       }
+      else main
     }
 
     @inline final def set(value: T): Unit =
