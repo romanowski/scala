@@ -1,6 +1,7 @@
 package scala.reflect.internal.util
 
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.{ReentrantLock, StampedLock}
 
 object Parallel {
 
@@ -30,13 +31,11 @@ object Parallel {
     def apply(initial: Int = 0): Counter = new Counter(initial)
   }
 
-  // Wrapper for `synchronized` method. In future could provide additional logging, safety checks, etc.
-  @inline def synchronizeAccess[T <: Object, U](obj: T)(block: => U): U = {
-    if (isParallel) Parallel.synchronized[U](block) else block
-  }
-
-  class Lock {
-    @inline final def apply[T](op: => T) = synchronizeAccess(this)(op)
+  class Lock  extends ReentrantLock {
+    @inline final def apply[T](op: => T) = if (isParallel) {
+      lock()
+      try op finally unlock()
+    } else op
   }
 
   class AbstractThreadLocal[T](initial: T, shouldFailOnMain: Boolean) {

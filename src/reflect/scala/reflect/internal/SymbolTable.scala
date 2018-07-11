@@ -13,7 +13,7 @@ import util._
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.internal.util.Parallel.synchronizeAccess
+import scala.reflect.internal.util.Parallel
 import scala.reflect.internal.{TreeGen => InternalTreeGen}
 
 abstract class SymbolTable extends macros.Universe
@@ -56,9 +56,7 @@ abstract class SymbolTable extends macros.Universe
 
   // Wrapper for `synchronized` method. In future could provide additional logging, safety checks, etc.
   // We are locking on `synchronizeSymbolsAccess` object which is created per `SymbolTable` instance
-  object synchronizeSymbolsAccess {
-    def apply[T](block: => T): T = synchronizeAccess(this)(block)
-  }
+  object synchronizeSymbolsAccess extends Parallel.Lock
 
   trait ReflectStats extends BaseTypeSeqsStats
                         with TypesStats
@@ -406,7 +404,9 @@ abstract class SymbolTable extends macros.Universe
     private var caches = List[WeakReference[Clearable]]()
     private var javaCaches = List[JavaClearable[_]]()
 
-    def recordCache[T <: Clearable](cache: T): T = Parallel.synchronizeAccess(perRunCaches) {
+    object perRunCachesLock extends Parallel.Lock
+
+    def recordCache[T <: Clearable](cache: T): T = perRunCachesLock {
       cache match {
         case jc: JavaClearable[_] =>
           javaCaches ::= jc
@@ -420,7 +420,7 @@ abstract class SymbolTable extends macros.Universe
      * Removes a cache from the per-run caches. This is useful for testing: it allows running the
      * compiler and then inspect the state of a cache.
      */
-    def unrecordCache[T <: Clearable](cache: T): Unit = Parallel.synchronizeAccess(perRunCaches) {
+    def unrecordCache[T <: Clearable](cache: T): Unit = perRunCachesLock {
       cache match {
         case jc: JavaClearable[_] =>
           javaCaches = javaCaches.filterNot(cache == _)
@@ -429,7 +429,7 @@ abstract class SymbolTable extends macros.Universe
       }
     }
 
-    def clearAll() = Parallel.synchronizeAccess(perRunCaches) {
+    def clearAll() = perRunCachesLock {
        // Non needed anymore since caches are now local to thread and cleaned up after every phase
       debuglog("Clearing " + (caches.size + javaCaches.size) + " caches.")
       caches foreach (ref => Option(ref.get).foreach(_.clear))
@@ -479,9 +479,11 @@ abstract class SymbolTable extends macros.Universe
     val changesBaseClasses = true
     def transform(sym: Symbol, tpe: Type): Type = tpe
   }
+
+  object infoTransformersLock extends Parallel.Lock
   /** The set of all installed infotransformers. */
-  def infoTransformers = Parallel.synchronizeAccess(this){_infoTransformers}
-  def infoTransformers_=(v: InfoTransformer) = Parallel.synchronizeAccess(this){_infoTransformers = v}
+  def infoTransformers = infoTransformersLock{_infoTransformers}
+  def infoTransformers_=(v: InfoTransformer) = infoTransformersLock{_infoTransformers = v}
 
   /** The phase which has given index as identifier. */
   val phaseWithId: Array[Phase]

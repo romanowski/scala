@@ -263,8 +263,7 @@ trait Types
   /** The base class for all types */
   abstract class Type extends TypeApiImpl with Annotatable[Type] {
 
-    @inline final def lockThisType[T](op: => T): T =
-      Parallel.synchronizeAccess(this)(op)
+    object lockThisType extends Parallel.Lock
 
     /** Types for which asSeenFrom always is the identity, no matter what
      *  prefix or owner.
@@ -1396,16 +1395,16 @@ trait Types
     private[reflect] var baseTypeSeqPeriod = NoPeriod
     private[reflect] var baseClassesCache: List[Symbol] = _
     private[reflect] var baseClassesPeriod = NoPeriod
-    private[reflect] object Lock
+    private[reflect] object Lock extends Parallel.Lock
 
-    private[Types] def invalidatedCompoundTypeCaches() = Parallel.synchronizeAccess(Lock) {
+    private[Types] def invalidatedCompoundTypeCaches() = Lock {
       baseTypeSeqCache = null
       baseTypeSeqPeriod = NoPeriod
       baseClassesCache = null
       baseClassesPeriod = NoPeriod
     }
 
-    override def baseTypeSeq: BaseTypeSeq = Parallel.synchronizeAccess(Lock) {
+    override def baseTypeSeq: BaseTypeSeq = Lock {
       val cached = baseTypeSeqCache
       if (baseTypeSeqPeriod == currentPeriod && cached != null && cached != undetBaseTypeSeq)
         cached
@@ -1420,7 +1419,7 @@ trait Types
 
     override def baseTypeSeqDepth: Depth = baseTypeSeq.maxDepth
 
-    override def baseClasses: List[Symbol] = Parallel.synchronizeAccess(Lock) {
+    override def baseClasses: List[Symbol] = Lock {
       val cached = baseClassesCache
       if (baseClassesPeriod == currentPeriod && cached != null) cached
       else {
@@ -1502,7 +1501,7 @@ trait Types
     tpe.typeSymbol :: baseTail
   }
 
-  protected def defineBaseTypeSeqOfCompoundType(tpe: CompoundType) = Parallel.synchronizeAccess(tpe.Lock) {
+  protected def defineBaseTypeSeqOfCompoundType(tpe: CompoundType) = tpe.Lock {
     val period = tpe.baseTypeSeqPeriod
     if (period != currentPeriod) {
       tpe.baseTypeSeqPeriod = currentPeriod
@@ -1598,7 +1597,7 @@ trait Types
         define()
     }
   }
-  private def defineBaseClassesOfCompoundType(tpe: CompoundType, force: Boolean)= Parallel.synchronizeAccess(tpe.Lock) {
+  private def defineBaseClassesOfCompoundType(tpe: CompoundType, force: Boolean)= tpe.Lock {
     val period = tpe.baseClassesPeriod
     if (period == currentPeriod) {
       if (force && breakCycles) {
@@ -2025,9 +2024,7 @@ trait Types
     private var relativeInfoCacheValidForPeriod: Period = NoPeriod
     private var relativeInfoCacheValidForSymInfo: Type = _
 
-    object synchronizeRelativeInfoCacheAccess {
-      @inline final def apply[T](op: => T): T = Parallel.synchronizeAccess(this)(op)
-    }
+    object synchronizeRelativeInfoCacheAccess extends Parallel.Lock
 
     override private[Types] def invalidateTypeRefCaches(): Unit = synchronizeRelativeInfoCacheAccess {
       super.invalidateTypeRefCaches()
